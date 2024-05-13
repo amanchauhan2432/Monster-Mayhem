@@ -13,6 +13,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/SkeletalMeshSocket.h"
 
+#include "../Items/Weapons/Weapon.h"
+#include "Components/WidgetComponent.h"
+
 AStella::AStella()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -42,10 +45,9 @@ void AStella::BeginPlay()
 
 	if (WeaponClass)
 	{
-		AActor* Weapon = GetWorld()->SpawnActor<AActor>(WeaponClass);
-		if (Weapon)
+		if (AWeapon* Weapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass))
 		{
-			Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("WeaponSocket"));
+			EquipWeapon(Weapon);
 		}
 	}
 }
@@ -53,7 +55,6 @@ void AStella::BeginPlay()
 void AStella::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 void AStella::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -65,7 +66,11 @@ void AStella::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AStella::Movement);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AStella::Look);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AStella::Fire);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AStella::FireButtonPressed);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AStella::FireButtonReleased);
+		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &AStella::Aim);
+		EnhancedInputComponent->BindAction(PickupAction, ETriggerEvent::Started, this, &AStella::Pickup);
+		EnhancedInputComponent->BindAction(DropAction, ETriggerEvent::Started, this, &AStella::Drop);
 	}
 }
 
@@ -95,7 +100,7 @@ void AStella::Look(const FInputActionValue& Value)
 	}
 }
 
-void AStella::Fire(const FInputActionValue& Value)
+void AStella::Fire()
 {
 	if (MuzzleEffect && MuzzleSound && FireMontage && HitEffect && BulletTrailEffect)
 	{
@@ -105,7 +110,7 @@ void AStella::Fire(const FInputActionValue& Value)
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleEffect, SocketTransform);
 
 		FVector TrailEndLocation;
-		GetLineTrace(SocketTransform.GetLocation(), TrailEndLocation);
+		GetLineTraceForBullet(SocketTransform.GetLocation(), TrailEndLocation);
 
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, TrailEndLocation);
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BulletTrailEffect, SocketTransform)->SetVectorParameter("Target", TrailEndLocation);
@@ -114,7 +119,57 @@ void AStella::Fire(const FInputActionValue& Value)
 	}
 }
 
-void AStella::GetLineTrace(FVector InSocketLocation, FVector& TrailEndLocation)
+void AStella::FireButtonPressed()
+{
+	GetWorldTimerManager().SetTimer(FireTimer, this, &AStella::Fire, 0.1f, true);
+}
+
+void AStella::FireButtonReleased()
+{
+	GetWorldTimerManager().ClearTimer(FireTimer);
+}
+
+void AStella::Aim()
+{
+	if (!bIsAiming)
+	{
+		FollowCamera->SetFieldOfView(50.f);
+		bIsAiming = true;
+	}
+	else
+	{
+		FollowCamera->SetFieldOfView(90.f);
+		bIsAiming = false;
+	}
+}
+
+void AStella::Pickup()
+{
+	if (LastTracedWeapon)
+	{
+		LastTracedWeapon->StartInterpolation(this);
+	}
+}
+
+void AStella::Drop()
+{
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->ThrowWeapon();
+	}
+}
+
+void AStella::EquipWeapon(AWeapon* WeaponToEquip)
+{
+	if (WeaponToEquip)
+	{
+		WeaponToEquip->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("WeaponSocket"));
+		EquippedWeapon = WeaponToEquip;
+		EquippedWeapon->SetItemState(EItemState::EIS_Equipped);
+	}
+}
+
+void AStella::GetStartEndForTrace(FVector& OutStart, FVector& OutEnd)
 {
 	FVector2D ViewportSize;
 	if (GEngine && GEngine->GameViewport)
@@ -126,13 +181,19 @@ void AStella::GetLineTrace(FVector InSocketLocation, FVector& TrailEndLocation)
 	FVector WorldPosition, WorldDirection;
 	UGameplayStatics::DeprojectScreenToWorld(UGameplayStatics::GetPlayerController(this, 0), CrosshairLocation, WorldPosition, WorldDirection);
 
+	OutStart = WorldPosition;
+	OutEnd = WorldPosition + WorldDirection * 50000.f;
+}
+
+void AStella::GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation)
+{
+	FVector Start, End;
+	GetStartEndForTrace(Start, End);
+
+	TrailEndLocation = End;
 
 	// LineTrace from crosshair to aim location
 	FHitResult HitResult;
-	FVector Start = WorldPosition;
-	FVector End = WorldPosition + WorldDirection * 50000.f;
-	TrailEndLocation = End;
-
 	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECollisionChannel::ECC_Visibility);
 	if (HitResult.GetActor())
 	{
@@ -148,3 +209,26 @@ void AStella::GetLineTrace(FVector InSocketLocation, FVector& TrailEndLocation)
 	}
 }
 
+void AStella::GetLineTraceForWeapon()
+{
+	FVector Start, End;
+	GetStartEndForTrace(Start, End);
+
+	FHitResult WeaponHitResult;
+	GetWorld()->LineTraceSingleByChannel(WeaponHitResult, Start, End, ECollisionChannel::ECC_Visibility);
+
+	if (AWeapon* Weapon = Cast<AWeapon>(WeaponHitResult.GetActor()))
+	{
+		Weapon->PickupWidget->SetVisibility(true);
+		LastTracedWeapon = Weapon;
+	}
+	else if (LastTracedWeapon)
+	{
+		LastTracedWeapon->PickupWidget->SetVisibility(false);
+	}
+}
+
+FVector AStella::GetInterpTargetLocation()
+{
+	return FollowCamera->GetComponentLocation() + FollowCamera->GetForwardVector() * 200.f + FVector(0.f, 0.f, 20.f);
+}

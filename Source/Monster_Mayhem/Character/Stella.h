@@ -19,6 +19,9 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UCameraComponent* FollowCamera;
 
+	class AWeapon* LastTracedWeapon{ nullptr };
+	AWeapon* EquippedWeapon;
+
 
 	// Input
 	UPROPERTY(EditAnywhere, Category = Input)
@@ -36,11 +39,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = Input)
 	UInputAction* FireAction;
 
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* AimAction;
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* PickupAction;
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* DropAction;
 
 	// Weapon Properties
 
 	UPROPERTY(EditAnywhere, Category = Weapon)
-	TSubclassOf<AActor> WeaponClass;
+	TSubclassOf<class AWeapon> WeaponClass;
 
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	class UParticleSystem* MuzzleEffect;
@@ -53,6 +64,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	class USoundBase* MuzzleSound;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	bool bIsAiming;
 
 	// Montages
 
@@ -71,8 +85,22 @@ public:
 
 	void Movement(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void Fire(const FInputActionValue& Value);
 
+	void Fire();
+	void FireButtonPressed();
+	void FireButtonReleased();
+	FTimerHandle FireTimer;
 
-	void GetLineTrace(FVector InSocketLocation, FVector& TrailEndLocation);
+	void Aim();
+
+	void Pickup();
+	void Drop();
+
+	void EquipWeapon(AWeapon* WeaponToEquip);
+
+	void GetStartEndForTrace(FVector& OutStart, FVector& OutEnd);
+	void GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation);
+	void GetLineTraceForWeapon();
+
+	FORCEINLINE FVector GetInterpTargetLocation();
 };

@@ -23,5 +23,7 @@ void UStellaAnimInstance::NativeUpdateAnimation(float DeltaTime)
 		FRotator MovementRotation = UKismetMathLibrary::MakeRotFromX(StellaCharacter->GetVelocity());
 
 		MovementOffsetYaw = UKismetMathLibrary::NormalizedDeltaRotator(MovementRotation, AimRotation).Yaw;
+
+		bIsAiming = StellaCharacter->bIsAiming;
 	}
 }
