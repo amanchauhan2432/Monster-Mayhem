@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "../AmmoType.h"
 #include "Item.generated.h"
 
 UENUM(BlueprintType)
@@ -44,6 +45,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Curves")
 	class UCurveFloat* ItemZCurve;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* PickupSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* EquipSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon Properties")
+	int32 ItemCount{ 30 };
+
 	FTimerHandle InterpTimerHandle;
 	bool bCanInterp;
 
@@ -54,13 +64,13 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION()
-	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	virtual void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UFUNCTION()
 	void OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	void SetItemState(EItemState InState);
-	void SetItemProperties(EItemState InState);
+	virtual void SetItemProperties(EItemState InState);
 
 	void ThrowWeapon();
 	void StopFalling();

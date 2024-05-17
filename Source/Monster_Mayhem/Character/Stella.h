@@ -3,7 +3,18 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "../AmmoType.h"
 #include "Stella.generated.h"
+
+UENUM(BlueprintType)
+enum class ECombatType : uint8
+{
+	ECT_Unoccupied UMETA(DisplayName = "Unoccupied"),
+	ECT_Firing UMETA(DisplayName = "Firing"),
+	ECT_Reloading UMETA(DisplayName = "Reloading"),
+
+	EAT_MAX UMETA(DisplayName = "DefaultMAX")
+};
 
 UCLASS()
 class MONSTER_MAYHEM_API AStella : public ACharacter
@@ -19,8 +30,13 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UCameraComponent* FollowCamera;
 
-	class AWeapon* LastTracedWeapon{ nullptr };
-	AWeapon* EquippedWeapon;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	USceneComponent* HandSceneComponent;
+
+	class AItem* LastTracedItem{ nullptr };
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	class AWeapon* EquippedWeapon;
 
 
 	// Input
@@ -48,6 +64,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Input)
 	UInputAction* DropAction;
 
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* ReloadAction;
+
 	// Weapon Properties
 
 	UPROPERTY(EditAnywhere, Category = Weapon)
@@ -65,13 +84,22 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	class USoundBase* MuzzleSound;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	bool bIsAiming;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
+	TMap<EAmmoType, int32> AmmoMap;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
+	ECombatType CombatType = ECombatType::ECT_Unoccupied;
 
 	// Montages
 
 	UPROPERTY(EditAnywhere, Category = Montages)
 	class UAnimMontage* FireMontage;
+
+	UPROPERTY(EditAnywhere, Category = Montages)
+	UAnimMontage* ReloadMontage;
 
 protected:
 	virtual void BeginPlay() override;
@@ -96,11 +124,26 @@ public:
 	void Pickup();
 	void Drop();
 
-	void EquipWeapon(AWeapon* WeaponToEquip);
+	void Reload();
+	void PlayReloadMontage();
+	bool HasAmmo();
+
+	UFUNCTION(BlueprintCallable) // Anim Blueprint
+	void EndReload();
+
+	void PickupItem(AItem* ItemToPickup);
 
 	void GetStartEndForTrace(FVector& OutStart, FVector& OutEnd);
 	void GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation);
-	void GetLineTraceForWeapon();
+	void GetLineTraceForItem();
 
 	FORCEINLINE FVector GetInterpTargetLocation();
+
+	void InitializeAmmoMap();
+
+	UFUNCTION(BlueprintCallable) // Anim Blueprint
+	void Grab();
+
+	UFUNCTION(BlueprintCallable) // Anim Blueprint
+	void Release();
 };

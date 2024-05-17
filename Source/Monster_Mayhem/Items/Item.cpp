@@ -1,10 +1,10 @@
 #include "Item.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "../Character/Stella.h"
 #include "Weapons/Weapon.h"
+#include "Kismet/GameplayStatics.h"
 
 AItem::AItem()
 {
@@ -44,7 +44,7 @@ void AItem::Tick(float DeltaTime)
 
 	if (OverlappingPlayer)
 	{
-		OverlappingPlayer->GetLineTraceForWeapon();
+		OverlappingPlayer->GetLineTraceForItem();
 	}
 
 	InterpItem(DeltaTime);
@@ -165,10 +165,10 @@ void AItem::FinishInterpolation()
 {
 	bCanInterp = false;
 	
-	if (Character)
+	if (Character && EquipSound)
 	{
-		Character->Drop();
-		Character->EquipWeapon(Cast<AWeapon>(this));
+		Character->PickupItem(this);
+		UGameplayStatics::PlaySound2D(this, EquipSound);
 		SetItemState(EItemState::EIS_Equipped);
 	}
 }
