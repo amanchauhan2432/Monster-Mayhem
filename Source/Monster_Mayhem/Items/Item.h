@@ -31,7 +31,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	class USphereComponent* CollisionSphere;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	class UWidgetComponent* PickupWidget;
 
 	class AStella* OverlappingPlayer;
@@ -51,8 +51,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	USoundBase* EquipSound;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* MuzzleSound;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon Properties")
 	int32 ItemCount{ 30 };
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon Properties")
+	UMaterialInterface* OutlineMaterial;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	int32 SlotIndex{ 0 };
+
+	UMaterialInstanceDynamic* DynamicOutlineMaterial;
 
 	FTimerHandle InterpTimerHandle;
 	bool bCanInterp;

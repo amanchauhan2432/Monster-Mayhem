@@ -9,6 +9,7 @@ enum class EWeaponType : uint8
 {
 	EWT_SMG UMETA(DisplayName = "SMG"),
 	EWT_AR UMETA(DisplayName = "AR"),
+	EWT_Pistol UMETA(DisplayName = "Pistol"),
 
 	EWT_MAX UMETA(DisplayName = "DefaultMAX")
 };
@@ -41,6 +42,23 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
 	FName ReloadMontageSection{ "SMG" };
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	UTexture2D* WeaponIcon;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	UTexture2D* AmmoIcon;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	UTexture2D* PickupIcon;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	UTexture2D* CrosshairIcon;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon Properties")
 	bool bMagMoving;
+
+	// Functions
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void UpdateCrosshair();
 };

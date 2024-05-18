@@ -20,6 +20,11 @@ AAmmo::AAmmo()
 void AAmmo::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (OutlineMaterial)
+	{
+		AmmoMesh->SetOverlayMaterial(OutlineMaterial);
+	}
 }
 
 void AAmmo::Tick(float DeltaTime)

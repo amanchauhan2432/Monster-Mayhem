@@ -34,6 +34,12 @@ void AItem::BeginPlay()
 		PickupWidget->SetVisibility(false);
 	}
 
+	if (OutlineMaterial)
+	{
+		DynamicOutlineMaterial = UMaterialInstanceDynamic::Create(OutlineMaterial, this);
+		ItemMesh->SetOverlayMaterial(DynamicOutlineMaterial);
+	}
+
 	CollisionSphere->OnComponentBeginOverlap.AddDynamic(this, &AItem::OnBeginOverlap);
 	CollisionSphere->OnComponentEndOverlap.AddDynamic(this, &AItem::OnEndOverlap);
 }
@@ -98,6 +104,17 @@ void AItem::SetItemProperties(EItemState InState)
 		break;
 
 	case EItemState::EIS_Pickedup:
+
+		ItemMesh->SetSimulatePhysics(false);
+		ItemMesh->SetVisibility(false);
+		ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+
+		PickupWidget->SetVisibility(false);
+
+		CollisionSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+		CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 		break;
 
 	case EItemState::EIS_Equipped:

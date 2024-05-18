@@ -53,7 +53,8 @@ void AStella::BeginPlay()
 	{
 		if (AWeapon* Weapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass))
 		{
-			PickupItem(Weapon);
+			EquipWeapon(Weapon);
+			Inventory.Add(Weapon);
 		}
 	}
 }
@@ -76,8 +77,14 @@ void AStella::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AStella::FireButtonReleased);
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &AStella::Aim);
 		EnhancedInputComponent->BindAction(PickupAction, ETriggerEvent::Started, this, &AStella::Pickup);
-		EnhancedInputComponent->BindAction(DropAction, ETriggerEvent::Started, this, &AStella::Drop);
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &AStella::Reload);
+
+		EnhancedInputComponent->BindAction(EAction, ETriggerEvent::Started, this, &AStella::EKeyPressed);
+		EnhancedInputComponent->BindAction(OneAction, ETriggerEvent::Started, this, &AStella::OneKeyPressed);
+		EnhancedInputComponent->BindAction(TwoAction, ETriggerEvent::Started, this, &AStella::TwoKeyPressed);
+		EnhancedInputComponent->BindAction(ThreeAction, ETriggerEvent::Started, this, &AStella::ThreeKeyPressed);
+		EnhancedInputComponent->BindAction(FourAction, ETriggerEvent::Started, this, &AStella::FourKeyPressed);
+		EnhancedInputComponent->BindAction(FiveAction, ETriggerEvent::Started, this, &AStella::FiveKeyPressed);
 	}
 }
 
@@ -109,7 +116,7 @@ void AStella::Look(const FInputActionValue& Value)
 
 void AStella::Fire()
 {
-	if (MuzzleEffect && MuzzleSound && FireMontage && HitEffect && BulletTrailEffect && EquippedWeapon->Ammo > 0)
+	if (MuzzleEffect && EquippedWeapon->MuzzleSound && FireMontage && HitEffect && BulletTrailEffect && EquippedWeapon->Ammo > 0)
 	{
 		GetMesh()->GetAnimInstance()->Montage_Play(FireMontage);
 
@@ -122,7 +129,7 @@ void AStella::Fire()
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, TrailEndLocation);
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BulletTrailEffect, SocketTransform)->SetVectorParameter("Target", TrailEndLocation);
 
-		UGameplayStatics::SpawnSound2D(this, MuzzleSound);
+		UGameplayStatics::SpawnSound2D(this, EquippedWeapon->MuzzleSound);
 
 		EquippedWeapon->Ammo--;
 	}
@@ -136,16 +143,28 @@ void AStella::FireButtonPressed()
 {
 	if (CombatType == ECombatType::ECT_Unoccupied)
 	{
-		CombatType = ECombatType::ECT_Firing;
-		Fire();
-		GetWorldTimerManager().SetTimer(FireTimer, this, &AStella::Fire, 0.1f, true);
+		if (EquippedWeapon->WeaponType != EWeaponType::EWT_Pistol)
+		{
+			CombatType = ECombatType::ECT_Firing;
+			Fire();
+			GetWorldTimerManager().SetTimer(FireTimer, this, &AStella::Fire, 0.1f, true);
+		}
+		else
+		{
+			CombatType = ECombatType::ECT_Firing;
+			Fire();
+		}
 	}
 }
 
 void AStella::FireButtonReleased()
 {
 	GetWorldTimerManager().ClearTimer(FireTimer);
-	CombatType = ECombatType::ECT_Unoccupied;
+
+	if (CombatType == ECombatType::ECT_Firing)
+	{
+		CombatType = ECombatType::ECT_Unoccupied;
+	}
 }
 
 void AStella::Aim()
@@ -231,15 +250,87 @@ void AStella::EndReload()
 	}
 }
 
+void AStella::EKeyPressed()
+{
+	if (Inventory.IsValidIndex(0) && EquippedWeapon->SlotIndex != 0)
+	{
+		SwapWeapon(0);
+	}
+}
+
+void AStella::OneKeyPressed()
+{
+	if (Inventory.IsValidIndex(1) && EquippedWeapon->SlotIndex != 1)
+	{
+		SwapWeapon(1);
+	}
+}
+
+void AStella::TwoKeyPressed()
+{
+	if (Inventory.IsValidIndex(2) && EquippedWeapon->SlotIndex != 2)
+	{
+		SwapWeapon(2);
+	}
+}
+
+void AStella::ThreeKeyPressed()
+{
+	if (Inventory.IsValidIndex(3) && EquippedWeapon->SlotIndex != 3)
+	{
+		SwapWeapon(3);
+	}
+}
+
+void AStella::FourKeyPressed()
+{
+	if (Inventory.IsValidIndex(4) && EquippedWeapon->SlotIndex != 4)
+	{
+		SwapWeapon(4);
+	}
+}
+
+void AStella::FiveKeyPressed()
+{
+	if (Inventory.IsValidIndex(5) && EquippedWeapon->SlotIndex != 5)
+	{
+		SwapWeapon(5);
+	}
+}
+
+void AStella::SwapWeapon(int32 InSlotIndex)
+{
+	int32 TempLastIndex = EquippedWeapon->SlotIndex;
+	EquippedWeapon->SetItemState(EItemState::EIS_Pickedup);
+	EquipWeapon(Cast<AWeapon>(Inventory[InSlotIndex]));
+	PlaySlotAnim.Broadcast(TempLastIndex);
+
+	EquippedWeapon->UpdateCrosshair();
+
+	if (EquipMontage && EquippedWeapon)
+	{
+		GetMesh()->GetAnimInstance()->Montage_Play(EquipMontage);
+		UGameplayStatics::PlaySound2D(this, EquippedWeapon->PickupSound);
+	}
+}
+
 void AStella::PickupItem(AItem* ItemToPickup)
 {
 	if (AWeapon* InWeapon = Cast<AWeapon>(ItemToPickup))
 	{
-		Drop();
+		if (Inventory.Num() < 6)
+		{
+			Inventory.Add(InWeapon);
+			InWeapon->DynamicOutlineMaterial->SetScalarParameterValue(FName("Thickness"), 0.f);
+			InWeapon->SlotIndex = Inventory.Num() - 1;
+			InWeapon->SetItemState(EItemState::EIS_Pickedup);
+		}
+		else
+		{
+			Drop();
 
-		InWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("WeaponSocket"));
-		EquippedWeapon = Cast<AWeapon>(InWeapon);
-		EquippedWeapon->SetItemState(EItemState::EIS_Equipped);
+			EquipWeapon(InWeapon);
+		}
 	}
 	else if (AAmmo* InAmmo = Cast<AAmmo>(ItemToPickup))
 	{
@@ -257,6 +348,13 @@ void AStella::PickupItem(AItem* ItemToPickup)
 			}
 		}
 	}
+}
+
+void AStella::EquipWeapon(AWeapon* InWeapon)
+{
+	InWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("WeaponSocket"));
+	EquippedWeapon = InWeapon;
+	EquippedWeapon->SetItemState(EItemState::EIS_Equipped);
 }
 
 void AStella::GetStartEndForTrace(FVector& OutStart, FVector& OutEnd)
@@ -310,11 +408,13 @@ void AStella::GetLineTraceForItem()
 	if (AItem* Item = Cast<AItem>(ItemHitResult.GetActor()))
 	{
 		Item->PickupWidget->SetVisibility(true);
+		Item->DynamicOutlineMaterial->SetScalarParameterValue(FName("Thickness"), 1.5f);
 		LastTracedItem = Item;
 	}
 	else if (LastTracedItem)
 	{
 		LastTracedItem->PickupWidget->SetVisibility(false);
+		LastTracedItem->DynamicOutlineMaterial->SetScalarParameterValue(FName("Thickness"), 0.f);
 		LastTracedItem = nullptr;
 	}
 }

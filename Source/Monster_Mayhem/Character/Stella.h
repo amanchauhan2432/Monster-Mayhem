@@ -16,6 +16,8 @@ enum class ECombatType : uint8
 	EAT_MAX UMETA(DisplayName = "DefaultMAX")
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPlaySlotAnim, int32, LastSlotIndex);
+
 UCLASS()
 class MONSTER_MAYHEM_API AStella : public ACharacter
 {
@@ -37,6 +39,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	class AWeapon* EquippedWeapon;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
+	TArray<AItem*> Inventory;
 
 
 	// Input
@@ -62,10 +67,25 @@ public:
 	UInputAction* PickupAction;
 
 	UPROPERTY(EditAnywhere, Category = Input)
-	UInputAction* DropAction;
-
-	UPROPERTY(EditAnywhere, Category = Input)
 	UInputAction* ReloadAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input | Weapon Selection")
+	UInputAction* EAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input | Weapon Selection")
+	UInputAction* OneAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input | Weapon Selection")
+	UInputAction* TwoAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input | Weapon Selection")
+	UInputAction* ThreeAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input | Weapon Selection")
+	UInputAction* FourAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input | Weapon Selection")
+	UInputAction* FiveAction;
 
 	// Weapon Properties
 
@@ -80,9 +100,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Weapon")
 	class UParticleSystem* BulletTrailEffect;
-
-	UPROPERTY(EditAnywhere, Category = "Weapon")
-	class USoundBase* MuzzleSound;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	bool bIsAiming;
@@ -100,6 +117,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Montages)
 	UAnimMontage* ReloadMontage;
+
+	UPROPERTY(EditAnywhere, Category = Montages)
+	UAnimMontage* EquipMontage;
+
+	UPROPERTY(BlueprintAssignable)
+	FPlaySlotAnim PlaySlotAnim;
 
 protected:
 	virtual void BeginPlay() override;
@@ -131,7 +154,17 @@ public:
 	UFUNCTION(BlueprintCallable) // Anim Blueprint
 	void EndReload();
 
+	void EKeyPressed();
+	void OneKeyPressed();
+	void TwoKeyPressed();
+	void ThreeKeyPressed();
+	void FourKeyPressed();
+	void FiveKeyPressed();
+
+	void SwapWeapon(int32 InSlotIndex);
 	void PickupItem(AItem* ItemToPickup);
+
+	void EquipWeapon(AWeapon* InWeapon);
 
 	void GetStartEndForTrace(FVector& OutStart, FVector& OutEnd);
 	void GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation);
