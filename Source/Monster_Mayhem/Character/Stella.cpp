@@ -18,6 +18,11 @@
 #include "../Items/Ammo/Ammo.h"
 #include "Components/WidgetComponent.h"
 
+#include "../Interfaces/BulletHitInterface.h"
+#include "../Enemies/Enemy.h"
+#include "../Enemies/EnemyController.h"
+#include "BehaviorTree/BlackboardComponent.h"
+
 AStella::AStella()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -38,7 +43,7 @@ AStella::AStella()
 void AStella::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	InitializeAmmoMap();
 
 	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
@@ -57,6 +62,9 @@ void AStella::BeginPlay()
 			Inventory.Add(Weapon);
 		}
 	}
+
+	Health = MaxHealth;
+	HealthPercent = Health / MaxHealth;
 }
 
 void AStella::Tick(float DeltaTime)
@@ -86,6 +94,39 @@ void AStella::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		EnhancedInputComponent->BindAction(FourAction, ETriggerEvent::Started, this, &AStella::FourKeyPressed);
 		EnhancedInputComponent->BindAction(FiveAction, ETriggerEvent::Started, this, &AStella::FiveKeyPressed);
 	}
+}
+
+float AStella::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	Health = FMath::Clamp(Health - DamageAmount, 0.f, MaxHealth);
+	HealthPercent = Health / MaxHealth;
+
+	if (HitSound && BloodParticle)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BloodParticle, GetActorLocation());
+	}
+
+	if (HitReactMontage && CombatType != ECombatType::ECT_Reloading)
+	{
+		GetMesh()->GetAnimInstance()->Montage_Play(HitReactMontage);
+	}
+
+	if (Health == 0 && DeathMontage)
+	{
+		GetMesh()->GetAnimInstance()->Montage_Play(DeathMontage);
+		DisableInput(Cast<APlayerController>(GetController()));
+
+		auto EnemyController = Cast<AEnemyController>(EventInstigator);
+		if (EnemyController)
+		{
+			EnemyController->BlackboardComponent->SetValueAsBool(FName("DeadState"), true);
+			ShowEndWidget();
+		}
+	}
+	return DamageAmount;
 }
 
 void AStella::Movement(const FInputActionValue& Value)
@@ -124,12 +165,26 @@ void AStella::Fire()
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleEffect, SocketTransform);
 
 		FVector TrailEndLocation;
-		GetLineTraceForBullet(SocketTransform.GetLocation(), TrailEndLocation);
+		FHitResult OutResult;
+		GetLineTraceForBullet(SocketTransform.GetLocation(), TrailEndLocation, OutResult);
 
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, TrailEndLocation);
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BulletTrailEffect, SocketTransform)->SetVectorParameter("Target", TrailEndLocation);
+		IBulletHitInterface* BulletHitInterface = Cast<IBulletHitInterface>(OutResult.GetActor());
+		if (BulletHitInterface)
+		{
+			BulletHitInterface->BulletHit_Implementation(OutResult.Location);
+
+			if (Cast<AEnemy>(OutResult.GetActor()))
+			{
+				UGameplayStatics::ApplyDamage(OutResult.GetActor(), EquippedWeapon->Damage, GetController(), this, UDamageType::StaticClass());
+			}
+		}
+		else
+		{
+			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, TrailEndLocation);
+		}
 
 		UGameplayStatics::SpawnSound2D(this, EquippedWeapon->MuzzleSound);
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BulletTrailEffect, SocketTransform)->SetVectorParameter("Target", TrailEndLocation);
 
 		EquippedWeapon->Ammo--;
 	}
@@ -147,7 +202,7 @@ void AStella::FireButtonPressed()
 		{
 			CombatType = ECombatType::ECT_Firing;
 			Fire();
-			GetWorldTimerManager().SetTimer(FireTimer, this, &AStella::Fire, 0.1f, true);
+			GetWorldTimerManager().SetTimer(FireTimer, this, &AStella::Fire, 0.15f, true);
 		}
 		else
 		{
@@ -252,7 +307,7 @@ void AStella::EndReload()
 
 void AStella::EKeyPressed()
 {
-	if (Inventory.IsValidIndex(0) && EquippedWeapon->SlotIndex != 0)
+	if (Inventory.IsValidIndex(0) && EquippedWeapon->SlotIndex != 0 && CombatType != ECombatType::ECT_Reloading)
 	{
 		SwapWeapon(0);
 	}
@@ -260,7 +315,7 @@ void AStella::EKeyPressed()
 
 void AStella::OneKeyPressed()
 {
-	if (Inventory.IsValidIndex(1) && EquippedWeapon->SlotIndex != 1)
+	if (Inventory.IsValidIndex(1) && EquippedWeapon->SlotIndex != 1 && CombatType != ECombatType::ECT_Reloading)
 	{
 		SwapWeapon(1);
 	}
@@ -268,7 +323,7 @@ void AStella::OneKeyPressed()
 
 void AStella::TwoKeyPressed()
 {
-	if (Inventory.IsValidIndex(2) && EquippedWeapon->SlotIndex != 2)
+	if (Inventory.IsValidIndex(2) && EquippedWeapon->SlotIndex != 2 && CombatType != ECombatType::ECT_Reloading)
 	{
 		SwapWeapon(2);
 	}
@@ -276,7 +331,7 @@ void AStella::TwoKeyPressed()
 
 void AStella::ThreeKeyPressed()
 {
-	if (Inventory.IsValidIndex(3) && EquippedWeapon->SlotIndex != 3)
+	if (Inventory.IsValidIndex(3) && EquippedWeapon->SlotIndex != 3 && CombatType != ECombatType::ECT_Reloading)
 	{
 		SwapWeapon(3);
 	}
@@ -284,7 +339,7 @@ void AStella::ThreeKeyPressed()
 
 void AStella::FourKeyPressed()
 {
-	if (Inventory.IsValidIndex(4) && EquippedWeapon->SlotIndex != 4)
+	if (Inventory.IsValidIndex(4) && EquippedWeapon->SlotIndex != 4 && CombatType != ECombatType::ECT_Reloading)
 	{
 		SwapWeapon(4);
 	}
@@ -292,7 +347,7 @@ void AStella::FourKeyPressed()
 
 void AStella::FiveKeyPressed()
 {
-	if (Inventory.IsValidIndex(5) && EquippedWeapon->SlotIndex != 5)
+	if (Inventory.IsValidIndex(5) && EquippedWeapon->SlotIndex != 5 && CombatType != ECombatType::ECT_Reloading)
 	{
 		SwapWeapon(5);
 	}
@@ -373,7 +428,7 @@ void AStella::GetStartEndForTrace(FVector& OutStart, FVector& OutEnd)
 	OutEnd = WorldPosition + WorldDirection * 50000.f;
 }
 
-void AStella::GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation)
+void AStella::GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation, FHitResult& OutHitResult)
 {
 	FVector Start, End;
 	GetStartEndForTrace(Start, End);
@@ -386,6 +441,7 @@ void AStella::GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndL
 	if (HitResult.GetActor())
 	{
 		TrailEndLocation = HitResult.Location;
+		OutHitResult = HitResult;
 	}
 
 	// LineTrace from weapon to aim location
@@ -394,6 +450,7 @@ void AStella::GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndL
 	if (WeaponHitResult.GetActor())
 	{
 		TrailEndLocation = WeaponHitResult.Location;
+		OutHitResult = WeaponHitResult;
 	}
 }
 
@@ -421,7 +478,7 @@ void AStella::GetLineTraceForItem()
 
 FVector AStella::GetInterpTargetLocation()
 {
-	return FollowCamera->GetComponentLocation() + FollowCamera->GetForwardVector() * 200.f + FVector(0.f, 0.f, 20.f);
+	return (FollowCamera->GetComponentLocation() + (FollowCamera->GetForwardVector() * 200.f) + FVector(0.f, 0.f, 20.f));
 }
 
 void AStella::InitializeAmmoMap()

@@ -37,11 +37,50 @@ public:
 
 	class AItem* LastTracedItem{ nullptr };
 
+	UPROPERTY(EditAnywhere, Category = "Weapon")
+	TSubclassOf<class AWeapon> WeaponClass;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	class AWeapon* EquippedWeapon;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
 	TArray<AItem*> Inventory;
+
+	// Weapon Properties
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Properties")
+	class UParticleSystem* MuzzleEffect;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Properties")
+	class UParticleSystem* HitEffect;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Properties")
+	class UParticleSystem* BulletTrailEffect;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon Properties")
+	bool bIsAiming;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	TMap<EAmmoType, int32> AmmoMap;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Weapon Properties")
+	ECombatType CombatType = ECombatType::ECT_Unoccupied;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon Properties")
+	class USoundBase* HitSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon Properties")
+	UParticleSystem* BloodParticle;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	float Health = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health")
+	float MaxHealth = 100.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	float HealthPercent = 1.f;
+
 
 
 	// Input
@@ -87,29 +126,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input | Weapon Selection")
 	UInputAction* FiveAction;
 
-	// Weapon Properties
-
-	UPROPERTY(EditAnywhere, Category = Weapon)
-	TSubclassOf<class AWeapon> WeaponClass;
-
-	UPROPERTY(EditAnywhere, Category = "Weapon")
-	class UParticleSystem* MuzzleEffect;
-
-	UPROPERTY(EditAnywhere, Category = "Weapon")
-	class UParticleSystem* HitEffect;
-
-	UPROPERTY(EditAnywhere, Category = "Weapon")
-	class UParticleSystem* BulletTrailEffect;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
-	bool bIsAiming;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	TMap<EAmmoType, int32> AmmoMap;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
-	ECombatType CombatType = ECombatType::ECT_Unoccupied;
-
 	// Montages
 
 	UPROPERTY(EditAnywhere, Category = Montages)
@@ -121,6 +137,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = Montages)
 	UAnimMontage* EquipMontage;
 
+	UPROPERTY(EditAnywhere, Category = Montages)
+	UAnimMontage* HitReactMontage;
+
+	UPROPERTY(EditAnywhere, Category = Montages)
+	UAnimMontage* DeathMontage;
+
 	UPROPERTY(BlueprintAssignable)
 	FPlaySlotAnim PlaySlotAnim;
 
@@ -131,6 +153,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
 	// Input
 
@@ -167,10 +191,10 @@ public:
 	void EquipWeapon(AWeapon* InWeapon);
 
 	void GetStartEndForTrace(FVector& OutStart, FVector& OutEnd);
-	void GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation);
+	void GetLineTraceForBullet(FVector InSocketLocation, FVector& TrailEndLocation, FHitResult& OutHitResult);
 	void GetLineTraceForItem();
 
-	FORCEINLINE FVector GetInterpTargetLocation();
+	FVector GetInterpTargetLocation();
 
 	void InitializeAmmoMap();
 
@@ -179,4 +203,7 @@ public:
 
 	UFUNCTION(BlueprintCallable) // Anim Blueprint
 	void Release();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowEndWidget();
 };

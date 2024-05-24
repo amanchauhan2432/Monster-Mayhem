@@ -28,6 +28,9 @@ public:
 	int32 MagazineCapacity = 30;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
+	float Damage = 10;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")
 	FString WeaponName{ "Submachine Gun" };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Properties")

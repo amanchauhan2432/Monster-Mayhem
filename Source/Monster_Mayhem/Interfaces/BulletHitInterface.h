@@ -17,5 +17,5 @@ class MONSTER_MAYHEM_API IBulletHitInterface
 public:
 
 	UFUNCTION(BlueprintNativeEvent)
-	void BulletHit();
+	void BulletHit(FVector HitLocation);
 };
